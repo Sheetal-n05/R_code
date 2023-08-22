@@ -1,0 +1,228 @@
+---
+title: "DA5020.A9.Sheetal.Nighut"
+author: "Sheetal Nighut"
+date: "7/24/2022"
+output: html_document
+---
+
+```{r}
+# loading essential libraries
+
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+library(scales)
+```
+
+# 1) Load the data into your R environment (found in Canvas). Ensure that you inspect the data, so that you know how to identify the necessary columns.
+
+
+```{r}
+# Read the csv file and importing it
+
+air_pass <- read.csv("/Users/sheetalnighut/Desktop/DA_5020/Air_Traffic_Passenger_Statistics.csv")
+head(air_pass)
+```
+
+```{r}
+# Check the rows and columns 
+
+dim(air_pass)
+
+str(air_pass)
+```
+
+
+
+# 2) Filter the dataset to extract all domestic passenger activity that occurred each year, in the month of 
+March. After which calculate the total passengers for each period. Visualize the extracted data, using a 
+line chart; indicate the year on the x-axis and the total passengers on the y-axis. Comment on the 
+visualization. Note: the final/aggregated dataset should have one row for March of each year. 
+
+
+```{r}
+# Filte the data set to get the domestic flights only
+domestic_only <- air_pass[which(air_pass$GEO.Summary == "Domestic"),]
+
+# Add the date to the Activity Period
+domestic_only$Activity.Period <- paste0(domestic_only$Activity.Period, '01')
+
+# Convert the Activity Period to year, month and day format
+domestic_only$Activity.Period <- as.Date(domestic_only$Activity.Period, format = "%Y%m%d")
+
+# Extract the columns having month = "March"
+march_only <- domestic_only[which(months(domestic_only$Activity.Period) == 'March'),]
+
+# In the domestic flights for the month of March, count the number of passengers each year
+total_count <- march_only %>%
+  mutate(Activity.Period =  year(march_only$Activity.Period))%>%
+  group_by(Activity.Period) %>%
+  summarise(passengers_cnt = sum(Passenger.Count))
+head(total_count)
+```
+
+
+```{r}
+# using ggplot visualize the data
+
+ggplot(total_count, aes(x = Activity.Period, y = passengers_cnt, fill = Activity.Period)) +
+  geom_line(stat = "Identity")+ xlab("Year") + ylab("Total domestic passengers") +
+  labs(title = "All domestic passenger activity that occurred each year, in the month of March", caption = "Air_Traffic_Passenger_Statistics.csv")
+```
+
+
+
+# 3) Forecast the total passenger activity for March 2019, using a simple moving average of the following time 
+periods: 201603, 201703 and 201803. After which, calculate the error (i.e. the difference between the 
+actual and the predicted values for March 2019). Evaluate the results; how does it compare to the actual 
+value for the total passenger count in March 2019? 
+
+```{r}
+
+# Extract the data for the periods 201603, 201703 and 201803. 
+x <- total_count[11:13,]
+
+# Move average to forecast the passenger activity for March 2019
+mov_avg <- mean(x$passengers_cnt)
+mov_avg
+```
+```{r}
+# Actual value in 2019
+total_count[14,]
+```
+
+
+# 4) Forecast the total passenger activity for 2019, using a three year weighted moving average. Apply the 
+following weights: 3, 5, and 7 for the respective time periods: 201603, 201703 and 201803. After which, 
+calculate the error and evaluate the result from your prediction. How does it compare to the actual value 
+for the total passenger count in March 2019? 
+
+```{r}
+# Create a vector of weights
+w <- c(3,5,7)
+
+# Assign the weight to the count of passengers for the periods:  201603, 201703 and 201803. 
+sw <- w* x$passengers_cnt
+
+# Weighted Moving Average
+sum(sw)/sum(w)
+```
+```{r}
+# Actual value in 2019
+total_count[14,]
+```
+
+
+# 5) Forecast the total passenger activity for 2019 using exponential smoothing (alpha is 0.7). Comment on the 
+prediction for March 2019 with the actual value in the dataset. Note: use data from 2008 to 2018 to build 
+your model. 
+
+```{r}
+#  data from 2008 to 2018 
+lm_data <- total_count[3:13,]
+
+# Set alpha as 0.7
+alpha <- 0.7
+
+# Create two columns Forecast and Error in the data frame
+lm_data$Ft<- 0
+lm_data$E <- 0
+
+# Assign the value to first row of newly created columns
+lm_data$Ft[1] <- as.numeric(lm_data[1,2])
+
+# Assign the value to all rows of the columns
+
+for (i in 2:nrow(lm_data)) {
+  lm_data$Ft[i] <- as.numeric(lm_data$Ft[i-1] + alpha*lm_data$E[i-1])
+  lm_data$E[i] <- as.numeric(lm_data[i,2] - lm_data$Ft[i])
+}
+
+#  Forecast the total passenger activity for 2019 using exponential smoothing 
+forecast <- lm_data[3:13,]
+n <- nrow(forecast)
+F.es <- lm_data$Ft[n] + alpha*lm_data$E[n]
+F.es
+
+```
+
+# 6) Build a simple linear regression model using the year and total passenger activity for all data from 2008 to 2018. After which, forecast the total passenger activity for 2019 and 2020. Comment on the results.
+
+```{r}
+# Add the date to the Activity Period
+air_pass$Activity.Period <- paste0(air_pass$Activity.Period, '01')
+
+# Convert the Activity Period to year, month and day format
+air_pass$Activity.Period <- as.Date(air_pass$Activity.Period, format = "%Y%m%d")
+
+# Group the data by year and the total count per year
+extract<- air_pass%>% select(Activity.Period, Passenger.Count)%>%
+  group_by(Years= year(Activity.Period))%>%
+             summarise(passengers_cnt = sum(Passenger.Count))
+
+# Filter the years from 2008 to 2018
+q6 <- extract%>%filter(extract$Years %in% 2008:2018)
+q6
+
+# Build a simple linear regression model
+model <- lm(passengers_cnt ~ Years, data= q6)
+summary(model)
+```
+
+```{r}
+# Forecast for the year 2019 
+f_19 <- -66775833 - 35737*(2019)
+f_19
+
+# Forecast for the year 2019 
+f_20 <- -66775833 - 35737*(2020)
+f_20
+```
+
+
+
+# 7) Calculate the mean squared error (MSE) for the models in (5 and 6) above based on the data from 2008 to 
+2018. Perform this step by step, using each model to make a forecast for each given time period, then 
+
+
+```{r}
+# Initialize columns for prediction and error
+q6$P <- 0
+q6$SE <- 0
+
+# squared error value calculation
+for (i in 1:nrow(q6)){
+  q6$P[i] <- -8.656e+09 +4.346e+06*(q6$Years[i])
+ q6$SE[i] <- (as.numeric(q6[i,2] -q6$P[i])^2)
+}
+head(q6)
+```
+
+```{r}
+# Finding the MSE
+format(mean(q6$SE), scientific = FALSE)
+```
+
+```{r}
+# Intialize  the column of error to Exponential smoothing model data
+
+ lm_data$SE <- 0
+
+# Calculating squared error value
+
+for(i in 1:nrow(lm_data)){
+  lm_data$SE[i] <- (lm_data$E[i])^2
+}
+
+lm_data
+```
+
+```{r}
+# Calculate MSE value for Exponential smoothing model 
+
+format(mean(lm_data$SE), scientific= FALSE)
+```
+
+The MSE value for a linear regression model is 3543073376864 and MSE for Exponential smoothing model is 139638420983. MSE for is low  regression model. Hence, our linear regression model is more accurate as  it's MSE is lower than that of exponential smoothing model.
+
+
