@@ -1,0 +1,200 @@
+---
+title: "DA5020.A11.Sheetal.Nighut"
+author: "Sheetal Nighut"
+date: "8/7/2022"
+output: html_document
+---
+
+Load all the essential libraries and packages
+
+```{r}
+library(caret)
+library(pROC)
+```
+
+
+### Solution 1
+Load the diabetes dataset “diabetes.csv”, inspect the data and gather any relevant summary statistics
+
+```{r}
+# Reading the csv file and importing it
+df_diabetes <- read.csv('/Users/sheetalnighut/Desktop/DA_5020/diabetes.csv', header = TRUE)
+str(df_diabetes)
+summary(df_diabetes)
+colSums(is.na(df_diabetes))
+# converting into factor
+df_diabetes$Outcome <- factor(df_diabetes$Outcome,levels = c("0","1"),labels = c("No Diabetes","Diabetes"))
+```
+
+### Solution 2
+Normalize the explanatory variables using min-max normalization
+
+```{r}
+# # Assigning the value to rows of the columns and checking summary
+df_preProc <- preProcess(df_diabetes[,c(1:8)], method=c("range"))
+df_norm <- predict(df_preProc, df_diabetes[,c(1:8)])
+df_norm$Outcome <- df_diabetes$Outcome
+summary(df_norm)
+```
+
+### Solution 3
+Split the data into a training set and a test set i.e. perform an 80/20 split; 80% of the data should be designated as the training data and 20% as the test data.
+
+```{r}
+#  creating data frame for the data df_norm and selecting rows
+set.seed(123)
+index <- sample(1:nrow(df_norm),size=nrow(df_norm)*0.8,replace = FALSE)
+train_set <- df_norm[index,]
+test_set <- df_norm[-index,]
+```
+
+
+### Solution 4 
+Create a function called knn_predict(). The function should accept the following as input: the training set, the test set and the value of k. For example knn_predict(train.data, test.data, k).
+
+```{r}
+# Using Euclidean formula, calculate distance
+distance <- function(x,y){ 
+  d <- 0
+  for (i in 1:(length(x))){
+    d <- d + (x[i] - y[i])^2
+  }
+  distance <- sqrt(d)
+}
+# By imputing distance calculate the neighbors
+k_neighbors <- function (train_set,test_set)
+{
+  m <- nrow(train_set)
+  ds <- numeric(m)
+  y <- test_set[c(1:8)]
+  for (i in 1:m) {
+    x <- train_set[i,c(1:8)]
+    ds[i] <- distance(x,y)
+  }
+  k_neighbors <- unlist(ds)
+}
+
+# In ascending order calculate get k neighbors
+
+k_closest <- function(k_neighbors,k){
+  ordered_neighbors <- order(k_neighbors)
+  k_closest <- ordered_neighbors[1:k]
+}
+# calculate the most frequent target class
+
+getmode <- function(a) {
+  uniqx <- unique(a)
+  uniqx[which.max(tabulate(match(a,uniqx)))]
+}
+
+# knn_predict function (train.data, test.data, k)
+
+knn_predict <- function(train_set, test_set,k){
+  ts <- nrow(test_set)
+  for (i in 1:ts) {
+    nb <- k_neighbors(train_set,test_set[i,])
+    cl<- k_closest(nb,k)
+    knn<- getmode(train_set$Outcome[cl])
+    ts[i] <- knn
+  }
+  return(ts)
+}
+```
+
+### Solution 5
+Demonstrate that the knn_predict() function works and use it to make predictions for the test set. You can determine a suitable value of k for your demonstration. After which, analyze the results that were returned from the function using a confusion matrix. Explain the results. Note: refer to the ‘Useful Resources’ section for more information on building a
+
+```{r}
+# calculate the train_set abd test_set data into k_predict_12
+k_predict_12 <- knn_predict(train_set,test_set,12)
+
+k_prediction_12 <- factor(k_predict_12,levels = c("1","2"),labels = c("No Diabetes","Diabetes"))
+
+test_actual <- df_norm[-index,9]
+
+confusion_matrix_12 <- confusionMatrix(k_prediction_12,reference = test_actual)
+confusion_matrix_12
+```
+
+From the above code, after  performing an analysis k = 12 yielded an accuracy of 0.7468 and a significance level of 0.01503. Which indicates a sensitivity of 0.8627 true positives for both predicted and actual diabetes, However, true negatives  for both predicted and actual no diabetes have a specificity of 0.5192. If they do not have diabetes, it is around 0.5, which is a high false positive rate and a high percentage of people are misclassifieds. therefore, in terms of the precision, the value is 0.7788, which is the percent of positive predictions.
+
+### Solution 6
+Repeat question 5 and perform an experiment using different values of k. Ensure that you try at least 5 
+different values of k and display the confusion matrix from each attempt. Which value of k produced the 
+most accurate predictions?
+
+```{r}
+# taking knn_predict to get the k_predict_5 data frame
+
+k_predict_5 <- knn_predict(train_set,test_set,5)
+
+k_prediction_5 <- factor(k_predict_5,levels = c("1","2"),labels = c("No Diabetes","Diabetes"))
+
+test_actual <- df_norm[-index,9]
+
+confusion_matrix_5 <- confusionMatrix(k_prediction_5,reference = test_actual)
+confusion_matrix_5
+
+
+k_predict_15 <- knn_predict(train_set,test_set,15)
+
+k_prediction_15 <- factor(k_predict_15,levels = c("1","2"),labels = c("No Diabetes","Diabetes"))
+
+test_actual <- df_norm[-index,9]
+
+confusion_matrix_15 <- confusionMatrix(k_prediction_15,reference = test_actual)
+confusion_matrix_15
+
+k_predict_20 <- knn_predict(train_set,test_set,20)
+
+k_prediction_20 <- factor(k_predict_20,levels = c("1","2"),labels = c("No Diabetes","Diabetes"))
+
+test_actual <- df_norm[-index,9]
+
+confusion_matrix_20 <- confusionMatrix(k_prediction_20,reference = test_actual)
+confusion_matrix_20
+
+
+k_predict_30 <- knn_predict(train_set,test_set,30)
+
+k_prediction_30 <- factor(k_predict_30,levels = c("1","2"),labels = c("No Diabetes","Diabetes"))
+
+test_actual <- df_norm[-index,9]
+
+confusion_matrix_30 <- confusionMatrix(k_prediction_30,reference = test_actual)
+confusion_matrix_30
+
+
+k_predict_40 <- knn_predict(train_set,test_set,40)
+
+k_prediction_40 <- factor(k_predict_40,levels = c("1","2"),labels = c("No Diabetes","Diabetes"))
+
+test_actual <- df_norm[-index,9]
+
+confusion_matrix_40 <- confusionMatrix(k_prediction_40,reference = test_actual)
+confusion_matrix_40
+
+
+# Plot to visualize the accuracy by different k values
+
+k_optimum <- c()
+for (i in 25:30) {
+  k_predict <- knn_predict(train_set,test_set,i)
+  k_prediction <- factor(k_predict,levels = c("1","2"),labels = c("No Diabetes","Diabetes"))
+  k_optimum[i] <- 100 * sum(test_actual == k_prediction)/NROW(test_actual)
+  k=i
+  cat(k,'=',k_optimum[i],'\n')
+}
+
+k_optimum <- as.data.frame(k_optimum)
+k_optimum <- k_optimum[25:30,]
+k_optimum <- as.data.frame(k_optimum)
+k_optimum$k <- 25:30
+names(k_optimum) <- c("accuracy", "k")
+
+# Using ggplot,  plot point by using k_optimum data
+ggplot(k_optimum) + geom_point(aes(x=k, y=accuracy)) + geom_line(aes(x=k, y=accuracy)) + ylim(70,80) + scale_x_continuous(breaks = seq(25, 30, by = 1)) + labs(title = "accuracy for different k")
+```
+
+from the above code, the highest accuracy was observed 0.7727 with a p value of 0.001908 for k = 29 out of k. So both the predicted and the actual diabetes are true positive with sensitivity 0.91118, and the true negative is true negative for both the predicted and the actual diabetes are not diabetes. 
+When the specificity is 1; It represents a high percentage and false positives are around 0.5, and misclassifies those with no diabetes as diabetics. A precision of 0.7815 shows that the value is predicted to be positive.
