@@ -1,0 +1,192 @@
+---
+title: "DA5030.Practice5.Sheetal"
+author: "Sheetal Nighut"
+date: "10/22/2022"
+output: html_document
+---
+
+Problem 1
+Build an R Notebook of the bank loan decision tree example in the textbook on pages 135 to 148; the CSV file is available for download below. Show each step and add appropriate documentation. Note that the provided dataset uses values 1 and 2 in default column whereas the book has no and yes in the default column. To fix any problems replace "no" with "1" and "yes" with "2" in the code that for matrix_dimensions. Alternatively, change the line
+error_cost <- matrix(c(0, 1, 4, 0), nrow = 2, dimnames = matrix_dimensions) to error_cost <- matrix(c(0, 1, 4, 0), nrow = 2).
+
+If your tree produces poor results or runs slowly, add control=Weka_control(R=TRUE)
+
+```{r}
+
+
+  setwd("/Users/sheetalnighut/Desktop/DA5030")
+  credit <- read.csv("credit.csv", stringsAsFactors = TRUE)
+  str(credit)
+
+
+  # inspect factor variable examples
+  table(credit$checking_balance)
+
+
+  table(credit$savings_balance)
+
+  # inspect continuous variable examples
+  summary(credit$months_loan_duration)
+
+  summary(credit$amount)
+
+
+  # convert target variable "default" to factor no/yes
+  credit$default <- ifelse(credit$default == 1, "no", "yes")
+  credit$default <- factor(credit$default)
+  table(credit$default)
+
+  # set random number generator version and seed
+  RNGversion("3.5.2")
+
+
+  set.seed(123)
+  # select 900 random values (90%/10% split)
+  train_sample <- sample(1000,900)
+  str(train_sample)
+
+  ##  int [1:900] 288 788 409 881 937 46 525 887 548 453 ...
+  # perform split from train_sample index vector
+  credit_train <- credit[train_sample, ]
+  credit_test <- credit[-train_sample, ]
+
+  # confirm split proportions
+  prop.table(table(credit_train$default))
+
+  ## Train model on the data
+
+  #install.packages("C50")
+  library(C50)
+
+  # C5.0 function call
+  # credit_train[-17] = data frame without default column
+  credit_model <- C5.0(credit_train[-17], credit_train$default)
+  credit_model
+
+
+  # display tree rules/decisions
+  summary(credit_model)
+
+
+  ## Evaluating model performance
+
+  # apply model to test dataset
+  credit_predict <- predict(credit_model, credit_test)
+
+  # create cross table
+  library(gmodels)
+  CrossTable(credit_test$default, credit_predict, 
+             prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, 
+             dnn = c('actual default', 'predicted default'))
+  
+  
+    ## Improving model performance
+
+  # improve with boosting, number of trees/trials
+  credit_boost10 <- C5.0(credit_train[-17], credit_train$default, trials = 10)
+  credit_boost10
+  
+  #summary(credit_boost10)
+  # create predictions with boosted model
+  credit_boost_pred10 <- predict(credit_boost10, credit_test)
+  # eval with crosstable
+  CrossTable(credit_test$default, credit_boost_pred10, 
+             prop.chisq = FALSE, prop.c = FALSE, 
+             prop.r = FALSE, dnn = c("actual default", "predicted default"))
+  
+  
+    ## Apply cost matrix
+
+  # construct cost matrix
+  matrix_demensions <- list(c("no", "yes"), c("no", "yes"))
+  names(matrix_demensions) <- c("predicted", "actual")
+  matrix_demensions
+
+  
+    # assign penalty values for different errors
+  error_cost <- matrix(c(0,1,4,0), nrow = 2, dimnames = matrix_demensions)
+  error_cost
+  
+  # apply costs to new model
+  credit_cost <- C5.0(credit_train[-17], credit_train$default, costs = error_cost)
+  credit_cost_pred <- predict(credit_cost, credit_test)
+  CrossTable(credit_test$default, credit_cost_pred, 
+             prop.chisq = FALSE, prop.c = FALSE, 
+             prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+  
+  
+
+```
+
+Problem 2 (10 Pts)
+Build and R Notebook of the poisonous mushrooms example using rule learners in the textbook on pages 160 to 168. Show each step and add appropriate documentation. The CSV file is available below. If you have issues with the RWeka package on MacOS, consider using a Windows computer, RStudio.cloud or skip this question.
+Tip: In case anyone gets this error on the 1R implementation:
+>mushroom_1R <- OneR(type ~ ., data = mushrooms)
+Error in .jcall(o, "Ljava/lang/Class;", "getClass") : weka.core.UnsupportedAttributeTypeException: weka.classifiers.rules.OneR: ...
+Change your characters to factors. Here's an explanation why factors are needed. 
+
+```{r}
+  mushrooms <- read.csv("mushrooms.csv", stringsAsFactors = TRUE)
+  # remove veil_type from df since it is all one factor
+  mushrooms$veil_type <- NULL
+  # distribution of type
+  table(mushrooms$type)
+  
+  prop.table(table(mushrooms$type))
+  
+    ## Train model on data
+  #install.packages("OneR")
+  library(OneR)
+  # 1R model - one rule
+  mushroom_1R <- OneR(type~., data = mushrooms)
+  mushroom_1R
+  
+  
+    ## Evaluate model performance
+
+  mushroom_1R_pred <- predict(mushroom_1R, mushrooms)
+  table(actual = mushrooms$type, predicted = mushroom_1R_pred)
+  
+  
+```
+
+Problem 3 (35 Pts)
+
+So far we have explored four different approaches to classification: KNN, Naive Bayes, C5.0 Decision Trees, and RIPPER Rules. Comment on the differences of the algorithms and when each is generally used. Provide examples of when they work well and when they do not work well. Add your comments to your R Notebook. Be specific and explicit; however, no code examples are needed.
+
+ANS :
+
+k-nearest neighbor classification models are used to make predictions about unknowns based on like cases in the data. We can obtain this by calculating the distance between the unknown and each observation in the training set. 
+
+kNN does not have variable distribution requirements, however, the data requires pre-processing which includes handling of outliers and missing values, data normalization, and categorical variable encoding. Predictions are computationally expensive since distance from the unknown to each observation in the data must be calculated at the time of prediction resulting in long run times.
+
+Naïve Bayes classification models make predictions based on the probability of an outcome given the features in the data. Probabilities calculated from the features in the training data allow for the construction of a model that can be applied in real-time to make quick determinations. The model is better for categorical data sets, can function with noisy and missing data, and is often used with text data.
+
+Decision trees and rule classifiers create models that sequentially partition data based on logical operations until a prediction can be made. These models can handle a combination of numeric and categorical features but are prone to over fitting. Use of a decision tree or rule classifier model ensemble can increase the generalization of the model and reduce error
+
+
+Problem 4 (35 Pts)
+
+Much of our focus so far has been on building a single model that is most accurate. In practice, data scientists often construct multiple models and then combine them into a single prediction model. This is referred to as a model ensemble. Two common techniques for assembling such models are boosting and bagging. Do some research and define what model ensembles are, why they are important, and how boosting and bagging function in the construction of assemble models. Be detailed and provide references to your research. You can use this excerpt from Kelleher, MacNamee, and D'Arcy, Fundamentals of Machine Learning for Predictive Data Analytics as a starting point. This book is an excellent resource for those who want to dig deeper into data mining and machine learning.
+
+ANS :
+
+Model ensembles combine multiple models to make their predictions. Each model is generated from the same training data but is little different and this make easy for increased generalization and can lower the overall error in order to make predictions. Which create model ensembles are boosting and bagging.
+
+The boosting method is an iterative process in which each successive model focuses on correcting the mis-classified cases from the previous model. Based on the model’s performance, the prediction in the ensemble is given a different weight and final class prediction is made using a weighted vote.
+
+The bagging method uses a bootstrap approach to create multiple training samples of equal size from the data. Bootstrapping is a random sampling method which uses replacement. Each of the bootstrapped samples is used to train a model in the ensemble. As the composition of each sample varies the models then we might expect be slight difference.
+
+References:
+
+https://en.wikipedia.org/wiki/Ensemble_learning
+
+https://mitpress.mit.edu/books/fundamentals-machine-learning-predictive-data-analytics
+
+https://builtin.com/machine-learning/ensemble-model
+
+https://www.r-bloggers.com/2021/04/naive-bayes-classification-in-r/
+
+
+
+
