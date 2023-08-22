@@ -1,0 +1,125 @@
+---
+title: "DA5030.Practice8.Sheetal"
+author: "Sheetal Nighut"
+date: "11/19/2022"
+output: html_document
+---
+
+Problem 1:
+
+Build an R Notebook of the social networking service example in the textbook on pages 296 to 310. Show each step and add appropriate documentation.
+
+```{r}
+
+  #Importing Dataset
+  sns_data <- read.csv("snsdata.csv")
+
+  #Exploring Dataset
+  str(sns_data)
+
+
+  #Checking the distribution of gender with NA present or not
+  table(sns_data$gender, useNA = "ifany")
+  
+  
+  #Exploring age feature we observe that it contains age from 3 to 107
+  summary(sns_data$age)
+  
+  #Since we are working with teen data we remove all the ages above 20 and below 13
+  sns_data$age <- ifelse(sns_data$age >= 13 & sns_data$age < 20, sns_data$age, NA)
+  summary(sns_data$age)
+  
+  
+  #Assigning dummy codes to gender
+  sns_data$female <- ifelse(sns_data$gender == "F" & !is.na(sns_data$gender), 1, 0)
+  sns_data$no_gender <- ifelse(is.na(sns_data$gender), 1, 0)
+
+  #Check count of dummy codes for gender and comparing with original
+  table(sns_data$gender, useNA = "ifany")
+  
+  table(sns_data$female, useNA = "ifany")
+  
+  table(sns_data$no_gender, useNA = "ifany")
+  
+  #Calculating mean of age with and without NA's
+  mean(sns_data$age)
+  
+  mean(sns_data$age, na.rm = TRUE)
+  
+  #Computing mean of age by grouping with graduation year
+  aggregate(data = sns_data, age ~ gradyear, mean, na.rm = TRUE)
+  
+  #use the ave() function, which returns a vector with the group means r epeated such that the result is equal in length to the original vector
+  ave_age <- ave(sns_data$age, sns_data$gradyear, FUN = function(x) mean(x, na.rm = TRUE))
+
+  #Imputing missing age values
+  sns_data$age <- ifelse(is.na(sns_data$age), ave_age, sns_data$age)
+  summary(sns_data$age)
+  
+  
+  #Selecting interest features
+  interests <- sns_data[5:40]
+
+  #Applying z-score standardization
+  interests_z <- as.data.frame(lapply(interests, scale))
+
+  #Using kmeans to divide interests in 5 clusters
+  teen_clusters <- kmeans(interests_z, 5)
+
+  #Checking the size of the clusters and centers of the cluster
+  teen_clusters$size
+  
+  
+  teen_clusters$centers
+  
+  #Adding a new column cluster to the dataset
+  sns_data$cluster <- teen_clusters$cluster
+
+  #Getting the data for first 5 users
+  sns_data[1:5, c("cluster", "gender", "age", "friends")]
+  
+  #check average age for each cluster
+  aggregate(data = sns_data, age ~ cluster, mean)
+  
+  #check average gender for each cluster
+  aggregate(data = sns_data, female ~ cluster, mean)
+  
+  #check average number of friends for each cluster
+  aggregate(data = sns_data, friends ~ cluster, mean)
+  
+  
+```
+
+Problem 2:
+
+1) What are some of the key differences between SVM and Random Forest for classification? When is each algorithm appropriate and preferable? Provide examples.
+
+ANS : 
+
+SVM models perform better on sparse data than random forest trees. Also it generally perform better on linear dependencies and are less interpretable compared to Random forest
+Random forest is used for multiclass classification where as SVM is used for binary classification
+,for example SVM is Handwriting recognition and classificaiton of genes of a patient based on gene and proteins. foe example Random forest is Credit score decision making where applicant is rejected or not
+
+
+2) Why might it be preferable to include fewer predictors over many?
+
+ANS : 
+
+Usually if we select many predictors it only makes the model overfitted.
+Also adding many features sometime increase computation time and causes decrease in performance
+Because of this it is necessary to remove irrelevant predictors and it is recommended to use fewer and important features. Getting too many features means getting more data. It is not always possible to get all the data, so missing or sparse data can impact the model’s performance.
+
+3) You are asked to provide R-Squared for a kNN regression model. How would you respond to that request?
+
+ANS : 
+
+R-squared is a measure of goodness of a linear model. Since kNN is a non-linear regression model it would make no sense calculating R-squared for that and due to this it recommended to use different measures to calculate the accuracy of the model
+
+4) How can you determine which features to include when building a multiple regression model?
+
+ANS : 
+
+To make this decision, we can make use of different selection/elimination methods.
+like Backward elimination, Stepwise elimination, Forward selection.
+In Backward elimination, we select all features and then eliminate a single feature based on the p-value or AIC value which is not significant. After eliminating all insignificant features, we are left with most significant features which are included in the model
+In Forward selection, the reverse takes place we start with an empty equation and try every features each time and select the most significant one. In Stepwise selection requires an analysis of the contribution of the predictor variable previously entered in the equation at each step
